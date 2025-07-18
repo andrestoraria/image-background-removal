@@ -1,30 +1,28 @@
-# --- 1) Imagem base minimalista com Python 3.11 slim
+# Usamos imagem leve do Debian + Python 3.11
 FROM python:3.11-slim
 
-# --- 2) Definir diretório de trabalho
 WORKDIR /app
 
-# --- 3) Copiar requirements e instalar dependências de SO+pip
+# Copia e instala dependências
 COPY requirements.txt .
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-      gcc \
-      libgl1 \
-      libglib2.0-0 && \
-    pip install --no-cache-dir -r requirements.txt && \
-    apt-get purge -y --auto-remove gcc && \
-    rm -rf /var/lib/apt/lists/*
+# Instala libs do sistema necessárias para OpenCV / rembg
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      build-essential \
+      libgl1-mesa-glx \
+      libglib2.0-0 \
+ && pip install --no-cache-dir -r requirements.txt \
+ && apt-get purge -y build-essential \
+ && apt-get autoremove -y \
+ && rm -rf /var/lib/apt/lists/*
 
-# --- 4) Copiar todo o código para /app
+# Copia todo o código Python
 COPY . .
 
-# --- 5) Expor a porta padrão do container (Railway injeta $PORT)
+# Usa a porta que o Railway injeta via var ENV
+ENV PORT 8080
 EXPOSE 8080
 
-# --- 6) Comando de inicialização usando shell-form para expandir $PORT
-#     Ele vai rodar o Gunicorn atrelado à sua app Flask em processa_imagem:app
-CMD gunicorn \
-     --bind 0.0.0.0:"${PORT:-8080}" \
-     --workers 1 \
-     --worker-class sync \
-     processa_imagem:app
+# Ativa o WSGI servidor de produção
+# IMPORTANTE: usar shell form para expandir $PORT
+CMD gunicorn processa_imagem:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120
