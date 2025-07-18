@@ -1,23 +1,30 @@
-# Use uma imagem leve de Python
+# --- 1) Imagem base minimalista com Python 3.11 slim
 FROM python:3.11-slim
 
-# Define diretório de trabalho
+# --- 2) Definir diretório de trabalho
 WORKDIR /app
 
-# Copia só o requirements e instala dependências
+# --- 3) Copiar requirements e instalar dependências de SO+pip
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      gcc \
+      libgl1 \
+      libglib2.0-0 && \
+    pip install --no-cache-dir -r requirements.txt && \
+    apt-get purge -y --auto-remove gcc && \
+    rm -rf /var/lib/apt/lists/*
 
-# Copia todo o código da sua pasta atual
+# --- 4) Copiar todo o código para /app
 COPY . .
 
-# Aplique variáveis de ambiente
-# Define a PORT padrão (Railway vai sobrescrever essa var se usar outra porta)
-ENV PORT=8080
-
-# Informa ao Docker que o container vai escutar nessa porta
+# --- 5) Expor a porta padrão do container (Railway injeta $PORT)
 EXPOSE 8080
 
-# Comando final: inicia o Gunicorn ligando na porta definida por $PORT
-# Supondo que seu flask app esteja em processa_imagem.py e o app se chame "app"
-CMD ["gunicorn", "processa_imagem:app", "--bind", "0.0.0.0:${PORT}", "--workers", "1", "--timeout", "120"]
+# --- 6) Comando de inicialização usando shell-form para expandir $PORT
+#     Ele vai rodar o Gunicorn atrelado à sua app Flask em processa_imagem:app
+CMD gunicorn \
+     --bind 0.0.0.0:"${PORT:-8080}" \
+     --workers 1 \
+     --worker-class sync \
+     processa_imagem:app
