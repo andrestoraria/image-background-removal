@@ -1,0 +1,5 @@
+rembg
+opencv-python
+pillow
+numpy
+flask
