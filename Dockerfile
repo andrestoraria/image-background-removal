@@ -1,20 +1,23 @@
+# Use uma imagem leve de Python
 FROM python:3.11-slim
 
+# Define diretório de trabalho
 WORKDIR /app
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-      libgl1 libglib2.0-0 && \
-    rm -rf /var/lib/apt/lists/*
-
+# Copia só o requirements e instala dependências
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir gunicorn
+RUN pip install --no-cache-dir -r requirements.txt
 
+# Copia todo o código da sua pasta atual
 COPY . .
 
-# expõe 8080 (opcional, mas ajuda na leitura)
+# Aplique variáveis de ambiente
+# Define a PORT padrão (Railway vai sobrescrever essa var se usar outra porta)
+ENV PORT=8080
+
+# Informa ao Docker que o container vai escutar nessa porta
 EXPOSE 8080
 
-# usa a porta da ENV PORT, ou 8080 se não definida
-CMD ["sh","-c","gunicorn -b 0.0.0.0:${PORT:-8080} processa_imagem:app"]
+# Comando final: inicia o Gunicorn ligando na porta definida por $PORT
+# Supondo que seu flask app esteja em processa_imagem.py e o app se chame "app"
+CMD ["gunicorn", "processa_imagem:app", "--bind", "0.0.0.0:${PORT}", "--workers", "1", "--timeout", "120"]
